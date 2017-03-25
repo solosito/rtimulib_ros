@@ -28,6 +28,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
+#include <visualization_msgs/Marker.h>
 
 int main(int argc, char **argv)
 {
@@ -48,6 +49,13 @@ int main(int argc, char **argv)
     {
         ROS_WARN("No topic_name provided - default: imu/mag");
         mag_topic_name = "imu/mag";
+    }
+
+    std::string imu_marker_topic_name;
+    if(!private_n.getParam("imu_marker_topic_name", imu_marker_topic_name))
+    {
+        ROS_WARN("No topic_name provided - default: imu/marker");
+        imu_marker_topic_name = "imu/marker";
     }
 
     std::string calibration_file_path;
@@ -79,6 +87,7 @@ int main(int argc, char **argv)
 
     ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>(imu_topic_name.c_str(), 1);
     ros::Publisher mag_pub = n.advertise<sensor_msgs::MagneticField>(mag_topic_name.c_str(), 1);
+    ros::Publisher vis_pub = n.advertise<visualization_msgs::Marker>(imu_marker_topic_name.c_str(), 1);
 
     // Load the RTIMULib.ini config file
     RTIMUSettings *settings = new RTIMUSettings(calibration_file_path.c_str(), calibration_file_name.c_str()); 
@@ -106,6 +115,7 @@ int main(int argc, char **argv)
     {
         sensor_msgs::Imu imu_msg;
         sensor_msgs::MagneticField mag_msg;
+        visualization_msgs::Marker marker_msg;
 
         if (imu->IMURead())
         {
@@ -148,6 +158,29 @@ int main(int argc, char **argv)
                                                                 0, 0, 0};
 
             mag_pub.publish(mag_msg);
+
+            marker_msg.header.frame_id = frame_id;
+            marker_msg.header.stamp = ros::Time::now();
+//            marker_msg.ns = "my_namespace";
+            marker_msg.id = 0;
+            marker_msg.type = visualization_msgs::Marker::ARROW;
+            marker_msg.action = visualization_msgs::Marker::ADD;
+            marker_msg.pose.position.x = 1;
+            marker_msg.pose.position.y = 1;
+            marker_msg.pose.position.z = 1;
+            marker_msg.pose.orientation.x = imu_msg.orientation.x;
+            marker_msg.pose.orientation.y = imu_msg.orientation.y;
+            marker_msg.pose.orientation.z = imu_msg.orientation.z;
+            marker_msg.pose.orientation.w = imu_msg.orientation.w;
+            marker_msg.scale.x = 1;
+            marker_msg.scale.y = 0.1;
+            marker_msg.scale.z = 0.1;
+            marker_msg.color.a = 1.0;
+            marker_msg.color.r = 0.0;
+            marker_msg.color.g = 1.0;
+            marker_msg.color.b = 0.0;
+
+            vis_pub.publish(marker_msg);
         }
         ros::spinOnce();
         loop_rate.sleep();
